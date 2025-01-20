@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Image Filter with WebAssembly</title>
+    <style>
+      canvas {
+        border: 1px solid black;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>WASM Image Filter</h2>
+    <select id="filterType">
+      <option value="" selected disabled hidden>Choose a filter</option>
+      <option value="grayscale">Grayscale</option>
+      <option value="sepia">Sepia</option>
+      <option value="mosaic">Mosaic</option>
+      <option value="invert">Invert</option>
+      <!-- <option value="gaussian">Gaussian</option> -->
+    </select>
+    <input type="file" id="upload" accept="image/*" />
+    <br /><br />
+    <canvas id="canvas"></canvas>
+    <script src="image_filter.js"></script>
+    <script>
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      let wasmModule;
+      let loadedImage;
+
+      Module.onRuntimeInitialized = () => {
+        wasmModule = Module;
+      };
+
+      const applyFilter = (img) => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        let data = imageData.data;
+
+        if (wasmModule) {
+          let ptr = wasmModule._malloc(data.length);
+
+          wasmModule.HEAPU8.set(data, ptr);
+
+          switch (document.getElementById("filterType").value) {
+            case "grayscale":
+              wasmModule._apply_grayscale(ptr, canvas.width, canvas.height);
+              break;
+            case "sepia":
+              wasmModule._apply_sepia(ptr, canvas.width, canvas.height);
+              break;
+            case "mosaic":
+              // TODO handle configurable mosaic size
+              wasmModule._apply_mosaic(ptr, canvas.width, canvas.height, 8);
+              break;
+            case "invert":
+              wasmModule._apply_invert(ptr, canvas.width, canvas.height);
+              break;
+            // case "gaussian":
+            //   // TODO handle configurable sigma
+            //   wasmModule._apply_gaussian(
+            //     ptr,
+            //     canvas.width,
+            //     canvas.height,
+            //     3,
+            //     1
+            //   );
+            //   break;
+            default:
+              break;
+          }
+
+          let updatedData = new Uint8Array(
+            wasmModule.HEAPU8.buffer,
+            ptr,
+            data.length
+          );
+          imageData.data.set(updatedData);
+          ctx.putImageData(imageData, 0, 0);
+
+          wasmModule._free(ptr);
+        }
+      };
+
+      document
+        .getElementById("upload")
+        .addEventListener("change", function (event) {
+          let file = event.target.files[0];
+          let reader = new FileReader();
+          reader.onload = function (e) {
+            loadedImage = new Image();
+            loadedImage.onload = () => applyFilter(loadedImage);
+            loadedImage.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        });
+
+      document
+        .getElementById("filterType")
+        .addEventListener("change", () => applyFilter(loadedImage));
+    </script>
+  </body>
+</html>
