@@ -1,0 +1,46 @@
+name: Build and Deploy WebAssembly to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main # Trigger this workflow when changes are pushed to the main branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Emscripten
+        uses: emscripten/actions/setup-emscripten@v1
+        with:
+          sdk-version: "latest"
+
+      - name: Compile C code to WebAssembly (no push to repo)
+        run: |
+          emcc image_filter.c -o build/image_filter.js \
+            -s EXPORTED_FUNCTIONS='["_apply_grayscale", "_apply_sepia", "_apply_mosaic", "_apply_invert", "_malloc", "_free"]' \
+            -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "HEAPU8"]' \
+            -s WASM=1 \
+            -s INITIAL_MEMORY=33554432
+
+      - name: Prepare files for deployment
+        run: |
+          mkdir -p public
+
+          mv build/image_filter.js public/
+          mv build/image_filter.wasm public/
+
+          mv index.html public/
+
+      - name: Deploy to GitHub Pages
+        uses: stvnchng/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: public2
+
+      - name: Clean up temporary files
+        run: |
+          rm -rf build
