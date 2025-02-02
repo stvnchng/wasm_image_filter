@@ -18,7 +18,9 @@
       <option value="sepia">Sepia</option>
       <option value="mosaic">Mosaic</option>
       <option value="invert">Invert</option>
+      <!-- <option value="hueRotation">Hue Rotation</option> -->
       <!-- <option value="gaussian">Gaussian</option> -->
+      <option value="saturation">Saturation</option>
     </select>
     <input type="file" id="upload" accept="image/*" />
     <br /><br />
@@ -60,6 +62,19 @@
               break;
             case "invert":
               wasmModule._apply_invert(ptr, canvas.width, canvas.height);
+              break;
+            case "hueRotation":
+              // TODO handle configurable angle
+              wasmModule._apply_hueRotation(
+                ptr,
+                canvas.width,
+                canvas.height,
+                60
+              );
+              break;
+            case "saturation":
+              // TODO handle configurable saturation
+              wasmModule._apply_saturation(ptr, canvas.width, canvas.height, 4);
               break;
             // case "gaussian":
             //   // TODO handle configurable sigma
